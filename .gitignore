@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.nupkg
+
+# Node / React
+client/node_modules/
+client/dist/
+client/.env.local
+
+# Secrets — never commit your API key
+**/appsettings.*.json
+!**/appsettings.json
+!**/appsettings.Development.json
+
+# OS
+.DS_Store
+Thumbs.db
