@@ -1,6 +1,6 @@
 # Find That Book
 
-AI-powered library discovery workflow — InfoTrack Technical Challenge
+AI-powered library discovery workflow — Technical Challenge
 **Author:** Oscar Alvarez | **Date:** March 2026
 
 ---
@@ -250,4 +250,4 @@ Run: `dotnet test`
 
 ---
 
-*InfoTrack Technical Challenge — Oscar Alvarez — March 2026*
+*Technical Challenge — Oscar Alvarez — March 2026*
