@@ -93,6 +93,112 @@ FindThatBook/
 └── client/                           # React 18 + TypeScript frontend
 ```
 
+### Component Overview
+
+```mermaid
+flowchart LR
+    UI[React 18 + Vite UI]
+    API[FindThatBook.Api<br/>BookSearchController]
+    MW[GlobalExceptionMiddleware]
+    UC[SearchBooksUseCase]
+    IAI[IAiExtractor]
+    IREPO[IBookRepository]
+    GEM[GeminiExtractor]
+    REG[RegexFallbackExtractor]
+    OL[OpenLibraryClient]
+    MATCH[BookMatchingService]
+    NORM[TextNormalizer]
+    EXT[(Open Library API)]
+    GAPI[(Gemini 2.0 Flash)]
+
+    UI -- POST /api/v1/books/search --> API
+    API --> MW
+    API --> UC
+    UC --> IAI
+    UC --> IREPO
+    UC --> MATCH
+    MATCH --> NORM
+    IAI -.implements.-> GEM
+    IAI -.fallback.-> REG
+    IREPO -.implements.-> OL
+    GEM --> GAPI
+    OL --> EXT
+```
+
+### Search Request Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant C as Client (React)
+    participant Ctl as BookSearchController
+    participant UC as SearchBooksUseCase
+    participant G as GeminiExtractor
+    participant R as RegexFallbackExtractor
+    participant OL as OpenLibraryClient
+    participant M as BookMatchingService
+
+    C->>Ctl: POST /api/v1/books/search { query }
+    Ctl->>UC: Execute(BookSearchRequest)
+    UC->>G: ExtractAsync(query, 8s timeout)
+    alt Gemini success
+        G-->>UC: ExtractionResult (title, author, year, keywords)
+    else Gemini timeout/failure
+        UC->>R: ExtractAsync(query)
+        R-->>UC: ExtractionResult (regex heuristics)
+    end
+    UC->>OL: Search(title+author)
+    UC->>OL: Search(title)
+    UC->>OL: Search(author)
+    UC->>OL: Search(keywords)
+    OL-->>UC: BookCandidate[] (deduped by work_id)
+    UC->>M: Rank(candidates, extraction)
+    M-->>UC: MatchedBook[] (5-tier scoring)
+    UC-->>Ctl: Result<BookSearchResponse>
+    Ctl-->>C: 200 OK { extraction, results, totalCandidates }
+```
+
+### Domain Model
+
+```mermaid
+classDiagram
+    class SearchQuery {
+        +string RawText
+        +int MaxResults
+    }
+    class ExtractionResult {
+        +string Title
+        +AuthorInfo Author
+        +string[] Keywords
+        +int? Year
+        +string Confidence
+        +ExtractionMethod Method
+    }
+    class BookCandidate {
+        +string WorkId
+        +string Title
+        +string Author
+        +int FirstPublishYear
+    }
+    class MatchedBook {
+        +BookCandidate Candidate
+        +MatchType MatchType
+        +int MatchRank
+        +string Explanation
+    }
+    class BookMatchingService {
+        +Rank(candidates, extraction) MatchedBook[]
+    }
+    class TextNormalizer {
+        +Normalize(text) string
+        +Levenshtein(a, b) int
+    }
+    SearchQuery --> ExtractionResult
+    ExtractionResult --> BookCandidate : filters
+    BookCandidate --> MatchedBook : scored
+    BookMatchingService --> TextNormalizer
+    BookMatchingService --> MatchedBook : produces
+```
+
 ---
 
 ## API Endpoints
